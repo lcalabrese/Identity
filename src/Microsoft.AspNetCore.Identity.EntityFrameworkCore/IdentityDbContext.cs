@@ -3,8 +3,6 @@
 
 using System;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Microsoft.AspNetCore.Identity.EntityFrameworkCore
 {
@@ -149,108 +147,66 @@ namespace Microsoft.AspNetCore.Identity.EntityFrameworkCore
         /// </param>
         protected override void OnModelCreating(ModelBuilder builder)
         {
-            builder.Entity<TUser>(b => BuildUserModel(b));
+            builder.Entity<TUser>(b =>
+            {
+                b.HasKey(u => u.Id);
+                b.HasIndex(u => u.NormalizedUserName).HasName("UserNameIndex");
+                b.HasIndex(u => u.NormalizedEmail).HasName("EmailIndex");
+                b.ToTable("AspNetUsers");
+                b.Property(u => u.ConcurrencyStamp).IsConcurrencyToken();
 
-            builder.Entity<TRole>(b => BuildRoleModel(b));
+                b.Property(u => u.UserName).HasMaxLength(256);
+                b.Property(u => u.NormalizedUserName).HasMaxLength(256);
+                b.Property(u => u.Email).HasMaxLength(256);
+                b.Property(u => u.NormalizedEmail).HasMaxLength(256);
+                b.HasMany(u => u.Claims).WithOne().HasForeignKey(uc => uc.UserId).IsRequired();
+                b.HasMany(u => u.Logins).WithOne().HasForeignKey(ul => ul.UserId).IsRequired();
+                b.HasMany(u => u.Roles).WithOne().HasForeignKey(ur => ur.UserId).IsRequired();
+            });
 
-            builder.Entity<TUserClaim>(b => BuildUserClaimModel(b));
+            builder.Entity<TRole>(b => 
+            {
+                b.HasKey(r => r.Id);
+                b.HasIndex(r => r.NormalizedName).HasName("RoleNameIndex");
+                b.ToTable("AspNetRoles");
+                b.Property(r => r.ConcurrencyStamp).IsConcurrencyToken();
 
-            builder.Entity<TRoleClaim>(b => BuildRoleClaimModel(b));
+                b.Property(u => u.Name).HasMaxLength(256);
+                b.Property(u => u.NormalizedName).HasMaxLength(256);
 
-            builder.Entity<TUserRole>(b => BuildUserRoleModel(b));
+                b.HasMany(r => r.Users).WithOne().HasForeignKey(ur => ur.RoleId).IsRequired();
+                b.HasMany(r => r.Claims).WithOne().HasForeignKey(rc => rc.RoleId).IsRequired();
+            });
 
-            builder.Entity<TUserLogin>(b => BuildUserLoginModel(b));
+            builder.Entity<TUserClaim>(b => 
+            {
+                b.HasKey(uc => uc.Id);
+                b.ToTable("AspNetUserClaims");
+            });
 
-            builder.Entity<TUserToken>(b => BuildUserTokenModel(b));
-        }
+            builder.Entity<TRoleClaim>(b => 
+            {
+                b.HasKey(rc => rc.Id);
+                b.ToTable("AspNetRoleClaims");
+            });
 
-        /// <summary>
-        /// Allow further customization of the <typeparamref name="TRole"/> schema
-        /// </summary>
-        /// <param name="builder">Entity type builder of <typeparamref name="TRole"/></param>
-        protected virtual void BuildRoleModel(EntityTypeBuilder<TRole> builder)
-        {
-            builder.HasKey(r => r.Id);
-            builder.HasIndex(r => r.NormalizedName).HasName("RoleNameIndex");
-            builder.ToTable("AspNetRoles");
-            builder.Property(r => r.ConcurrencyStamp).IsConcurrencyToken();
+            builder.Entity<TUserRole>(b => 
+            {
+                b.HasKey(r => new { r.UserId, r.RoleId });
+                b.ToTable("AspNetUserRoles");
+            });
 
-            builder.Property(u => u.Name).HasMaxLength(256);
-            builder.Property(u => u.NormalizedName).HasMaxLength(256);
+            builder.Entity<TUserLogin>(b =>
+            {
+                b.HasKey(l => new { l.LoginProvider, l.ProviderKey });
+                b.ToTable("AspNetUserLogins");
+            });
 
-            builder.HasMany(r => r.Users).WithOne().HasForeignKey(ur => ur.RoleId).IsRequired();
-            builder.HasMany(r => r.Claims).WithOne().HasForeignKey(rc => rc.RoleId).IsRequired();
-        }
-
-        /// <summary>
-        /// Allow further customization of the <typeparamref name="TUser"/> schema
-        /// </summary>
-        /// <param name="builder">Entity type builder of <typeparamref name="TUser"/></param>
-        protected virtual void BuildUserModel(EntityTypeBuilder<TUser> builder)
-        {
-            builder.HasKey(u => u.Id);
-            builder.HasIndex(u => u.NormalizedUserName).HasName("UserNameIndex");
-            builder.HasIndex(u => u.NormalizedEmail).HasName("EmailIndex");
-            builder.ToTable("AspNetUsers");
-            builder.Property(u => u.ConcurrencyStamp).IsConcurrencyToken();
-
-            builder.Property(u => u.UserName).HasMaxLength(256);
-            builder.Property(u => u.NormalizedUserName).HasMaxLength(256);
-            builder.Property(u => u.Email).HasMaxLength(256);
-            builder.Property(u => u.NormalizedEmail).HasMaxLength(256);
-            builder.HasMany(u => u.Claims).WithOne().HasForeignKey(uc => uc.UserId).IsRequired();
-            builder.HasMany(u => u.Logins).WithOne().HasForeignKey(ul => ul.UserId).IsRequired();
-            builder.HasMany(u => u.Roles).WithOne().HasForeignKey(ur => ur.UserId).IsRequired();
-        }
-
-        /// <summary>
-        /// Allow further customization of the <typeparamref name="TUserClaim"/> schema
-        /// </summary>
-        /// <param name="builder">Entity type builder of <typeparamref name="TUserClaim"/></param>
-        protected virtual void BuildUserClaimModel(EntityTypeBuilder<TUserClaim> builder)
-        {
-            builder.HasKey(uc => uc.Id);
-            builder.ToTable("AspNetUserClaims");
-        }
-
-        /// <summary>
-        /// Allow further customization of the <typeparamref name="TRoleClaim"/> schema
-        /// </summary>
-        /// <param name="builder">Entity type builder of <typeparamref name="TRoleClaim"/></param>
-        protected virtual void BuildRoleClaimModel(EntityTypeBuilder<TRoleClaim> builder)
-        {
-            builder.HasKey(rc => rc.Id);
-            builder.ToTable("AspNetRoleClaims");
-        }
-
-        /// <summary>
-        /// Allow further customization of the <typeparamref name="TUserRole"/> schema
-        /// </summary>
-        /// <param name="builder">Entity type builder of <typeparamref name="TUserRole"/></param>
-        protected virtual void BuildUserRoleModel(EntityTypeBuilder<TUserRole> builder)
-        {
-            builder.HasKey(r => new { r.UserId, r.RoleId });
-            builder.ToTable("AspNetUserRoles");
-        }
-
-        /// <summary>
-        /// Allow further customization of the <typeparamref name="TUserLogin"/> schema
-        /// </summary>
-        /// <param name="builder">Entity type builder of <typeparamref name="TUserLogin"/></param>
-        protected virtual void BuildUserLoginModel(EntityTypeBuilder<TUserLogin> builder)
-        {
-            builder.HasKey(l => new { l.LoginProvider, l.ProviderKey });
-            builder.ToTable("AspNetUserLogins");
-        }
-
-        /// <summary>
-        /// Allow further customization of the <typeparamref name="TUserToken"/> schema
-        /// </summary>
-        /// <param name="builder">Entity type builder of <typeparamref name="TUserToken"/></param>
-        protected virtual void BuildUserTokenModel(EntityTypeBuilder<TUserToken> builder)
-        {
-            builder.HasKey(l => new { l.UserId, l.LoginProvider, l.Name });
-            builder.ToTable("AspNetUserTokens");
+            builder.Entity<TUserToken>(b => 
+            {
+                b.HasKey(l => new { l.UserId, l.LoginProvider, l.Name });
+                b.ToTable("AspNetUserTokens");
+            });
         }
     }
 }
